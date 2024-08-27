@@ -13,13 +13,24 @@ const Login = () => {
     const [loginError, setLoginError] = useState(''); // State for API errors
     const navigate = useNavigate(); // Initialize useNavigate
 
-
     useEffect(() => {
         const userData = localStorage.getItem('phoneUserData');
         if (userData) {
             const parsedData = JSON.parse(userData);
-            if (parsedData.role === 'superadmin') {
+            const role = parsedData.role;
+
+            // Navigate based on user role
+            if (role === 'superadmin') {
                 navigate('/superadmindashboard');
+            } else if (
+                role === 'Business_Banking_HOD' ||
+                role === 'Personal_Loan_HOD' ||
+                role === 'Mortgage_HOD' ||
+                role === 'CEO_Mortgage_HOD'
+            ) {
+                navigate('/hodphonebook');
+            } else if (role === 'CEO' || role === 'MD') {
+                navigate('/ceophonebook');
             } else {
                 navigate('/home');
             }
@@ -58,18 +69,29 @@ const Login = () => {
                 // Save response data in localStorage
                 localStorage.setItem('phoneUserData', JSON.stringify(response.data));
 
+                const role = response.data.role;
+
                 // Navigate based on user role
-                if (response.data.role === 'superadmin') {
+                if (role === 'superadmin') {
                     navigate('/superadmindashboard');
+                } else if (
+                    role === 'Business_Banking_HOD' ||
+                    role === 'Personal_Loan_HOD' ||
+                    role === 'Mortgage_HOD' ||
+                    role === 'CEO_Mortgage_HOD'
+                ) {
+                    navigate('/hodphonebook');
+                } else if (role === 'CEO' || role === 'MD') {
+                    navigate('/ceophonebook');
                 } else {
                     navigate('/home');
                 }
             }
         } catch (error) {
             console.error("Login error", error.response?.data || error.message);
-            setLoginError(error.response?.data?.message || "An error occurred during login");
+            setLoginError(error.response?.data?.message || "An Error Occurred During Login");
         } finally {
-            setLoading(false); // Stop loading
+            setLoading(false);
         }
     };
 
