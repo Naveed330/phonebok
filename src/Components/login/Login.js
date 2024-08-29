@@ -23,10 +23,9 @@ const Login = () => {
             if (role === 'superadmin') {
                 navigate('/superadmindashboard');
             } else if (
-                role === 'Business_Banking_HOD' ||
-                role === 'Personal_Loan_HOD' ||
-                role === 'Mortgage_HOD' ||
-                role === 'CEO_Mortgage_HOD'
+                role === 'HOD' ||
+                role === 'Manager' ||
+                role === 'TeamLead'
             ) {
                 navigate('/hodphonebook');
             } else if (role === 'CEO' || role === 'MD') {
@@ -59,7 +58,7 @@ const Login = () => {
 
         try {
             const response = await axios.post(
-                `${process.env.REACT_APP_BASE_URL}/api/users/login`,
+                `/api/users/login`,
                 { email, password }
             );
 
@@ -75,10 +74,10 @@ const Login = () => {
                 if (role === 'superadmin') {
                     navigate('/superadmindashboard');
                 } else if (
-                    role === 'Business_Banking_HOD' ||
-                    role === 'Personal_Loan_HOD' ||
-                    role === 'Mortgage_HOD' ||
-                    role === 'CEO_Mortgage_HOD'
+                    role === 'HOD' ||
+                    role === 'Manager' ||
+                    role === 'TeamLead'
+                    // role === 'CEO_Mortgage_HOD'
                 ) {
                     navigate('/hodphonebook');
                 } else if (role === 'CEO' || role === 'MD') {
@@ -89,7 +88,7 @@ const Login = () => {
             }
         } catch (error) {
             console.error("Login error", error.response?.data || error.message);
-            setLoginError(error.response?.data?.message || "An Error Occurred During Login");
+            setLoginError(error.response?.data?.message || "An error occurred during login");
         } finally {
             setLoading(false);
         }

@@ -3,7 +3,7 @@
 }
 
 .equal-width {
-    width: 15%;
+    width: 10%;
     text-align: center;
 }
 
@@ -97,4 +97,10 @@
 
 .table_head {
     background-color: linear-gradient(to right, rgba(0, 0, 0, 0.8), rgba(233, 189, 90, 0.5)) !important;
+}
+
+.image_url_default {
+    width: 70px;
+    height: 60px;
+    border-radius: 50%;
 }

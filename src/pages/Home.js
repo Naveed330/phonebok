@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import HomeNavbar from '../Components/navbar/Navbar';
 import { useNavigate } from 'react-router-dom';
-import { Table, Modal, Button, Form, Dropdown } from 'react-bootstrap';
+import { Table, Modal, Button, Form, Dropdown, Spinner } from 'react-bootstrap';
 import { MdAdd } from 'react-icons/md';
 import axios from 'axios';
 import { GrView } from 'react-icons/gr';
 import { CiEdit } from 'react-icons/ci';
 import './style.css';
+import defaultimage from '../Assets/defaultimage.png'
 
 const Home = () => {
     const navigate = useNavigate();
@@ -19,6 +20,12 @@ const Home = () => {
     const [commentsToView, setCommentsToView] = useState([]);
     const [dropdownEntry, setDropdownEntry] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchCalStatus, setSearchCalStatus] = useState(''); // State for selected calstatus filter
+    const [showModal, setShowModal] = useState(false);
+
+    // State for handling the conversion confirmation modal
+    const [showConvertModal, setShowConvertModal] = useState(false);
+    const [pendingStatusChange, setPendingStatusChange] = useState(null);
 
     useEffect(() => {
         const userData = localStorage.getItem('phoneUserData');
@@ -32,7 +39,7 @@ const Home = () => {
 
         if (userData && userData.token) {
             try {
-                const response = await fetch(`${process.env.REACT_APP_BASE_URL}/api/phonebook/get-all-phonebook`, {
+                const response = await fetch(`/api/phonebook/get-all-phonebook`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${userData.token}`,
@@ -64,15 +71,13 @@ const Home = () => {
     }, []);
 
     useEffect(() => {
-        // Filter phonebook data based on search query
-        if (searchQuery) {
-            setFilteredPhonebookData(phonebookData.filter(entry =>
-                entry.number.includes(searchQuery) || entry.status.includes(searchQuery)
-            ));
-        } else {
-            setFilteredPhonebookData(phonebookData);
-        }
-    }, [searchQuery, phonebookData]);
+        // Filter phonebook data based on search queries
+        const filteredData = phonebookData.filter(entry =>
+            (entry.number.includes(searchQuery) || entry.status.includes(searchQuery)) &&
+            (searchCalStatus === '' || entry.calstatus === searchCalStatus)
+        );
+        setFilteredPhonebookData(filteredData);
+    }, [searchQuery, searchCalStatus, phonebookData]);
 
     const handleAddCommentClick = (entry) => {
         setSelectedEntry(entry);
@@ -86,13 +91,14 @@ const Home = () => {
         setShowViewCommentModal(true);
     };
 
+    // Add Comment API
     const handleSaveComment = async () => {
         if (selectedEntry) {
             try {
                 const userData = JSON.parse(localStorage.getItem('phoneUserData'));
                 if (userData && userData.token) {
                     await axios.post(
-                        `${process.env.REACT_APP_BASE_URL}/api/phonebook/add-comment`,
+                        `/api/phonebook/add-comment`,
                         {
                             phonebookId: selectedEntry._id,
                             comment: currentComment
@@ -122,13 +128,22 @@ const Home = () => {
         setShowAddCommentModal(false);
     };
 
-    const handleCallStatusChange = async (status) => {
+    const handleCallStatusChange = (status) => {
+        if (status === 'Convert to Lead') {
+            setPendingStatusChange(status);
+            setShowConvertModal(true);
+        } else {
+            updateCallStatus(status);
+        }
+    };
+
+    const updateCallStatus = async (status) => {
         if (dropdownEntry) {
             try {
                 const userData = JSON.parse(localStorage.getItem('phoneUserData'));
                 if (userData && userData.token) {
                     await axios.put(
-                        `${process.env.REACT_APP_BASE_URL}/api/phonebook/update-calstatus/${dropdownEntry._id}`,
+                        `/api/phonebook/update-calstatus/${dropdownEntry._id}`,
                         {
                             calstatus: status
                         },
@@ -154,22 +169,41 @@ const Home = () => {
                 console.error('Error updating call status:', error);
             }
         }
+
         setDropdownEntry(null); // Hide dropdown after selecting status
+        setShowConvertModal(false); // Hide confirmation modal after updating
+    };
+
+    const handleConfirmConversion = () => {
+        updateCallStatus(pendingStatusChange);
+        getPhoneNumber();
     };
 
     return (
         <div>
             <HomeNavbar />
-            <div className="phonebook-container ">
-
-                <div className='search_bar_container' >
-                    <Form.Group controlId="searchBar" className='searchBar_container'>
+            <div className="phonebook-container">
+                <div className="search-bar-container mb-4" style={{ display: 'flex', justifyContent: 'space-around', gap: '20px' }}  >
+                    <Form.Group controlId="searchBar" className="w-100">
                         <Form.Control
                             type="text"
                             placeholder="Search by Number"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
+                    </Form.Group>
+
+                    <Form.Group controlId="searchCalStatus" className="w-100">
+                        <Dropdown onSelect={(eventKey) => setSearchCalStatus(eventKey)}>
+                            <Dropdown.Toggle variant="outline-secondary" id="dropdown-basic" className="w-100">
+                                {searchCalStatus ? searchCalStatus : 'Search by Call Status'}
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu className="w-100">
+                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="">All</Dropdown.Item>
+                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="Interested">Interested</Dropdown.Item>
+                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="Rejected">Rejected</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
                     </Form.Group>
                 </div>
 
@@ -190,11 +224,19 @@ const Home = () => {
                                 <tr key={index}>
                                     <td style={{ textAlign: 'center' }}>{entry.number}</td>
                                     <td style={{ textAlign: 'center' }}>{entry.status}</td>
-                                    <td style={{ textAlign: 'center' }}>{entry.calstatus}</td>
+                                    <td
+                                        style={{
+                                            textAlign: 'center',
+                                            backgroundColor: entry.calstatus === 'Interested' ? 'green' : entry.calstatus === 'Rejected' ? 'red' : 'transparent',
+                                            color: entry.calstatus === 'Interested' || entry.calstatus === 'Rejected' ? 'white' : 'inherit'
+                                        }}
+                                    >
+                                        {entry.calstatus}
+                                    </td>
                                     <td style={{ textAlign: 'center' }}>
                                         {dropdownEntry && dropdownEntry._id === entry._id ? (
                                             <Dropdown>
-                                                <Dropdown.Toggle className='dropdown_menu' id="dropdown-basic">
+                                                <Dropdown.Toggle className="dropdown_menu" id="dropdown-basic">
                                                     {entry.calstatus || 'Select Status'}
                                                 </Dropdown.Toggle>
                                                 <Dropdown.Menu>
@@ -205,27 +247,29 @@ const Home = () => {
                                                 </Dropdown.Menu>
                                             </Dropdown>
                                         ) : (
-                                            <CiEdit onClick={() => setDropdownEntry(entry)} style={{ fontSize: '20px', cursor: 'pointer' }} />
+                                            <CiEdit
+                                                onClick={() => setDropdownEntry(entry)}
+                                                style={{ fontSize: '20px', cursor: 'pointer' }}
+                                            />
                                         )}
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <MdAdd
-                                            style={{ fontSize: '24px', cursor: 'pointer' }}
-                                            onClick={() => handleAddCommentClick(entry)}
-                                        />
+                                        <MdAdd onClick={() => handleAddCommentClick(entry)} style={{ fontSize: '20px', cursor: 'pointer' }} />
                                     </td>
                                     <td style={{ textAlign: 'center' }}>
-                                        <GrView
-                                            style={{ fontSize: '20px', cursor: 'pointer' }}
-                                            onClick={() => handleViewCommentsClick(entry)}
-                                        />
+                                        <GrView onClick={() => handleViewCommentsClick(entry)} style={{ fontSize: '20px', cursor: 'pointer' }} />
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </Table>
                 ) : (
-                    <p>No phonebook data available.</p>
+                    <p style={{ textAlign: 'center' }} className='mt-5' >No Data Available</p>
+                    // <div className="no-results" style={{ display: 'flex', justifyContent: 'center', alignItems:'center' }} >
+                    //     <Spinner animation="border" role="status">
+                    //         <span className="visually-hidden">Loading...</span>
+                    //     </Spinner>
+                    // </div>
                 )}
             </div>
 
@@ -235,42 +279,79 @@ const Home = () => {
                     <Modal.Title>Add Comment</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <Form>
-                        <Form.Group controlId="formComment">
-                            <Form.Label>Comment</Form.Label>
-                            <Form.Control
-                                type="text"
-                                value={currentComment}
-                                onChange={(e) => setCurrentComment(e.target.value)}
-                                placeholder="Enter comment"
-                            />
-                        </Form.Group>
-                    </Form>
+                    <Form.Group controlId="commentTextarea">
+                        <Form.Label>Comment</Form.Label>
+                        <Form.Control
+                            as="textarea"
+                            rows={3}
+                            value={currentComment}
+                            onChange={(e) => setCurrentComment(e.target.value)}
+                        />
+                    </Form.Group>
                 </Modal.Body>
                 <Modal.Footer>
-                    {/* <Button variant="secondary" onClick={() => setShowAddCommentModal(false)}>Close</Button> */}
-                    <Button variant="secondary" onClick={handleSaveComment}>Post Comment</Button>
+                    <Button variant="secondary" onClick={() => setShowAddCommentModal(false)}>
+                        Cancel
+                    </Button>
+                    <Button variant="primary" onClick={handleSaveComment}>
+                        Save
+                    </Button>
                 </Modal.Footer>
             </Modal>
 
             {/* View Comments Modal */}
-            <Modal show={showViewCommentModal} onHide={() => setShowViewCommentModal(false)}>
+            <Modal show={showViewCommentModal} onHide={() => setShowViewCommentModal(false)} size='lg' >
                 <Modal.Header closeButton>
                     <Modal.Title>View Comments</Modal.Title>
                 </Modal.Header>
-                <Modal.Body>
-                    {commentsToView.length > 0 ? (
-                        <ul>
-                            {commentsToView.map((comment, index) => (
-                                <li key={index}>{comment.remarks}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>No comments available.</p>
-                    )}
+                <Modal.Body style={{ height: 'auto', maxHeight: '700px', overflowY: 'scroll' }}>
+                    <ul>
+                        {commentsToView.length > 0 ? (
+                            commentsToView.map((comment, index) => (
+                                <li key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd', padding: '10px 0', }} >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} >
+                                        <img
+                                            src={comment.user?.image || defaultimage}
+                                            alt="User image"
+                                            className='image_url_default'
+                                            onError={(e) => {
+                                                e.target.onerror = null; // Prevents infinite loop in case defaultimage also fails
+                                                e.target.src = defaultimage; // Fallback to default image
+                                            }}
+                                        />
+
+                                        <div>
+                                            <p className='mb-0'>{comment?.remarks && comment?.remarks ? comment?.remarks : 'No Comments Available'}</p>
+                                            <small> {comment.user?.name && comment.user?.name ? comment.user.name : 'Unknown User'} </small>
+                                        </div>
+                                    </div>
+
+                                    <small>
+                                        {`${new Date(comment.createdAt).toDateString()} - ${new Date(comment.createdAt).toLocaleTimeString()}`}
+                                    </small>
+
+                                </li>
+                            ))
+                        ) : (
+                            <p>No Comments Available.</p>
+                        )}
+                    </ul>
                 </Modal.Body>
+            </Modal>
+
+            {/* Convert to Lead Confirmation Modal */}
+            <Modal show={showConvertModal} onHide={() => setShowConvertModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirm Conversion</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>Are you sure you want to convert this status to Lead?</Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowViewCommentModal(false)}>Close</Button>
+                    <Button variant="secondary" onClick={() => setShowConvertModal(false)}>
+                        Cancel
+                    </Button>
+                    <Button variant="primary" onClick={handleConfirmConversion}>
+                        Confirm
+                    </Button>
                 </Modal.Footer>
             </Modal>
         </div>

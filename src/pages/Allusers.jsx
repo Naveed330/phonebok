@@ -22,13 +22,13 @@ const Allusers = () => {
         const fetchData = async () => {
             try {
                 const [userResponse, pipelineResponse, branchResponse] = await Promise.all([
-                    axios.get(`${process.env.REACT_APP_BASE_URL}/api/users/get-users`, {
+                    axios.get(`/api/users/get-users`, {
                         headers: { Authorization: `Bearer ${authtoken}` },
                     }),
-                    axios.get(`${process.env.REACT_APP_BASE_URL}/api/pipelines/get-pipelines`, {
+                    axios.get(`/api/pipelines/get-pipelines`, {
                         headers: { Authorization: `Bearer ${authtoken}` },
                     }),
-                    axios.get(`${process.env.REACT_APP_BASE_URL}/api/branches/get-branches`, {
+                    axios.get(`/api/branches/get-branches`, {
                         headers: { Authorization: `Bearer ${authtoken}` },
                     }),
                 ]);
@@ -72,7 +72,7 @@ const Allusers = () => {
         setIsUpdatingUser(selectedUser._id);
         try {
             const response = await axios.put(
-                `${process.env.REACT_APP_BASE_URL}/api/users/update-user/${selectedUser._id}`,
+                `/api/users/update-user/${selectedUser._id}`,
                 {
                     name: selectedUser.name,
                     email: selectedUser.email,
@@ -115,9 +115,9 @@ const Allusers = () => {
 
         try {
             const response = await axios.put(
-                `${process.env.REACT_APP_BASE_URL}/api/users/delete-user/${userToDelete._id}`,
+                `/api/users/delete-user/${userToDelete._id}`,
                 {
-                    delstatus: true, 
+                    delstatus: true, // Set delStatus to true to indicate the user is deleted
                 },
                 {
                     headers: {
@@ -171,7 +171,7 @@ const Allusers = () => {
 
         try {
             const response = await axios.put(
-                `${process.env.REACT_APP_BASE_URL}/api/users/reset-password/${selectedUser._id}`,
+                `/api/users/reset-password/${selectedUser._id}`,
                 { password: passwords.newPassword },
                 {
                     headers: {
@@ -209,7 +209,11 @@ const Allusers = () => {
                     </Col>
                     <Col xs={24} sm={24} md={18} lg={20}>
                         <div className="cards-container" style={{ marginTop: '5%' }}>
-                
+                            {/* {loading ? (
+                                <div style={{ textAlign: 'center', padding: '20px' }}>
+                                    <Spin size="large" style={{ color: 'black' }} />
+                                </div>
+                            ) : ( */}
                                 <Row>
                                     {users.map((user) => (
                                         <Col
@@ -232,7 +236,12 @@ const Allusers = () => {
                                                 }}
                                                 cover={
                                                     <div className="user_image_container" style={{ position: 'relative' }}>
-                                                   
+                                                        {/* <img
+                                                            src={user.image ? user.image : 'No Image Found'}
+                                                            alt="user_image"
+                                                            className="user_image"
+                                                            style={{ display: isUpdatingUser === user._id ? 'none' : 'block' }}
+                                                        /> */}
                                                         {isUpdatingUser === user._id && (
                                                             <Spin
                                                                 size="large"

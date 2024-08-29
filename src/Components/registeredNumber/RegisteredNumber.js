@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Modal from 'react-bootstrap/Modal';
-import { Button, Container, Table, Form } from 'react-bootstrap';
+import { Button, Container, Table, Form, Spinner } from 'react-bootstrap';
 import Select from 'react-select';
-import './RegisteredNumber.css';
 import { GrView } from 'react-icons/gr';
 import HomeNavbar from '../navbar/Navbar';
 import { MdOutlineAddCircle } from 'react-icons/md';
-import ImportCSVForm from '../../Components/ImportCSv';
+import ImportCSVForm from '../ImportCSv'; // Fixed import
+import '../../pages/style.css';
+import defaultimage from '../../Assets/defaultimage.png'
+import { useNavigate } from 'react-router-dom';
 
 const RegisteredNumber = () => {
     const [pipelines, setPipelines] = useState([]);
@@ -21,39 +23,61 @@ const RegisteredNumber = () => {
     const [show, setShow] = useState(false);
     const [showViewCommentModal, setShowViewCommentModal] = useState(false);
     const [commentsToView, setCommentsToView] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [selectedCalStatus, setSelectedCalStatus] = useState(null); // New state for call status filter
 
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        const userData = localStorage.getItem('phoneUserData')
+        const parsedData = userData ? JSON.parse(userData) : {}
+
+        if (parsedData.role !== 'superadmin') {
+            navigate('/')
+        }
+    }, [navigate])
+
+    const calStatusOptions = [
+        { value: '', label: 'All Call Statuses' },
+        { value: 'Interested', label: 'Interested' },
+        { value: 'Rejected', label: 'Rejected' },
+    ];
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const token = JSON.parse(localStorage.getItem('phoneUserData'))?.token;
-                if (!token) {
-                    throw new Error('Token not found');
-                }
-                const pipelinesResponse = await axios.get(`${process.env.REACT_APP_BASE_URL}/api/pipelines/get-pipelines`);
+                if (!token) throw new Error('Token not found');
+
+                const [pipelinesResponse, usersResponse, phoneBookResponse] = await Promise.all([
+                    axios.get(`/api/pipelines/get-pipelines`),
+                    axios.get(`/api/users/get-users`),
+                    axios.get(`/api/phonebook/get-all-phonebook`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
                 setPipelines(pipelinesResponse.data.map(pipeline => ({
                     value: pipeline._id,
                     label: pipeline.name,
                 })));
 
-                const usersResponse = await axios.get(`${process.env.REACT_APP_BASE_URL}/api/users/get-users`);
                 setUsers(usersResponse.data.map(user => ({
                     value: user._id,
                     label: user.name,
-                    pipeline: user.pipeline?._id,
+                    pipelines: user.pipeline || [], // Ensure pipelines is an array
                 })));
 
-                const phoneBookResponse = await axios.get(`${process.env.REACT_APP_BASE_URL}/api/phonebook/get-all-phonebook`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-                setPhonebookData(phoneBookResponse.data);
-                setFilteredData(phoneBookResponse.data);
+                const sortedData = phoneBookResponse.data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                setPhonebookData(sortedData);
+                setFilteredData(sortedData);
             } catch (error) {
-                console.error('Error fetching data:', error);
+                setError(error.response?.data?.message || error.message);
+            } finally {
+                setLoading(false);
             }
         };
 
@@ -62,7 +86,9 @@ const RegisteredNumber = () => {
 
     useEffect(() => {
         if (selectedPipeline) {
-            const pipelineUsers = users.filter(user => user.pipeline === selectedPipeline.value);
+            const pipelineUsers = users.filter(user =>
+                Array.isArray(user.pipelines) && user.pipelines.some(pipeline => pipeline._id === selectedPipeline.value)
+            );
             setFilteredUsers(pipelineUsers);
         } else {
             setFilteredUsers(users);
@@ -73,19 +99,42 @@ const RegisteredNumber = () => {
         let filtered = phonebookData;
 
         if (selectedPipeline) {
-            filtered = filtered.filter(entry => entry.pipeline === selectedPipeline.value);
+            filtered = filtered.filter(entry =>
+                entry.pipeline && entry.pipeline._id === selectedPipeline.value
+            );
         }
 
         if (selectedUser) {
-            filtered = filtered.filter(entry => entry.user && entry.user._id === selectedUser.value);
+            filtered = filtered.filter(entry =>
+                entry.user && entry.user._id === selectedUser.value
+            );
+        }
+
+        if (selectedCalStatus && selectedCalStatus.value) {
+            filtered = filtered.filter(entry =>
+                entry.calstatus === selectedCalStatus.value
+            );
         }
 
         if (searchQuery) {
-            filtered = filtered.filter(entry => entry.number.toLowerCase().includes(searchQuery.toLowerCase()));
+            filtered = filtered.filter(entry =>
+                entry.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (entry.status && entry.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                (entry.calstatus && entry.calstatus.toLowerCase().includes(searchQuery.toLowerCase()))
+            );
         }
 
         setFilteredData(filtered);
-    }, [selectedPipeline, selectedUser, searchQuery, phonebookData]);
+    }, [selectedPipeline, selectedUser, selectedCalStatus, searchQuery, phonebookData]);
+
+    if (loading) return (
+        <div className="no-results" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Spinner animation="border" role="status">
+                <span className="visually-hidden">Loading...</span>
+            </Spinner>
+        </div>
+    );
+    if (error) return <p>Error: {error}</p>;
 
     const handleViewCommentsClick = (entry) => {
         setCommentsToView(entry.comments || []);
@@ -94,10 +143,8 @@ const RegisteredNumber = () => {
 
     const handleCSVUpload = async (formData) => {
         try {
-            const response = await axios.post(`${process.env.REACT_APP_BASE_URL}/api/phonebook/upload-csv`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+            const response = await axios.post(`/api/phonebook/upload-csv`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
             alert(response.data.message);
             handleClose();
@@ -107,42 +154,64 @@ const RegisteredNumber = () => {
         }
     };
 
-    if (!pipelines.length || !users.length) return <p>Loading...</p>;
-
     return (
         <>
             <HomeNavbar />
             <Container fluid>
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '20px' }} className='mt-4'>
+                    <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
 
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }} className='mt-4'>
                     <h2>Phonebook Management</h2>
                     <Button variant="outline-success" onClick={handleShow}>
                         <MdOutlineAddCircle style={{ marginTop: '-2px' }} /> Import CSV
                     </Button>
+                    </div>
+
+                    <div style={{display:'flex', gap:'15px', alignItems:'center'}} >
+                        <Button variant="outline-success" onClick={() => navigate('/createuser')} >Create Account</Button>
+                        <Button variant="outline-success" onClick={() => navigate('/allusers')} >All Users</Button>
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '10px' }} className='mt-3' >
+                <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '10px' }} className='mt-5'>
+                    {/* Filter by pipeline */}
                     <div className="filter-container w-100">
                         <label htmlFor="pipeline-filter">Filter by Pipeline:</label>
                         <Select
                             id="pipeline-filter"
-                            options={pipelines}
+                            options={[{ value: '', label: 'All Pipelines' }, ...pipelines]}
                             value={selectedPipeline}
                             onChange={setSelectedPipeline}
+                            isClearable
                         />
                     </div>
 
+                    {/* Filter by user */}
                     <div className="filter-container w-100">
                         <label htmlFor="user-filter">Filter by User:</label>
                         <Select
                             id="user-filter"
-                            options={filteredUsers}
+                            options={[{ value: '', label: 'All Users' }, ...filteredUsers]}
                             value={selectedUser}
                             onChange={setSelectedUser}
+                            isClearable
                             isDisabled={!selectedPipeline}
                         />
                     </div>
 
+                    {/* Filter by Call Status */}
+                    <div className="filter-container w-100">
+                        <label htmlFor="callstatus-filter">Filter by Call Status:</label>
+                        <Select
+                            id="callstatus-filter"
+                            options={calStatusOptions}
+                            value={selectedCalStatus}
+                            onChange={setSelectedCalStatus}
+                            isClearable
+                        />
+                    </div>
+
+                    {/* Search by Number */}
                     <Form.Group controlId="search" className='w-100'>
                         <Form.Label className='mb-0'>Search by Number:</Form.Label>
                         <Form.Control
@@ -152,8 +221,6 @@ const RegisteredNumber = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </Form.Group>
-
-
                 </div>
 
                 <Table striped bordered hover className="mt-3">
@@ -162,56 +229,104 @@ const RegisteredNumber = () => {
                             <th className="equal-width">Number</th>
                             <th className="equal-width">Status</th>
                             <th className="equal-width">Call Status</th>
+                            <th className="equal-width">Pipeline</th>
+                            <th className="equal-width">User</th>
                             <th className="equal-width">View Comments</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredData.map((entry) => (
-                            <tr key={entry._id}>
-                                <td style={{ textAlign: 'center' }}>{entry.number}</td>
-                                <td style={{ textAlign: 'center' }}>{entry.status}</td>
-                                <td style={{ textAlign: 'center' }}>{entry.calstatus}</td>
-                                <td style={{ textAlign: 'center' }}>
+                        {filteredData.length > 0 ? (
+                            filteredData.map((entry) => (
+                                <tr key={entry._id}>
+                                    <td style={{ textAlign: 'center' }}>
+                                        <a href={`tel:${entry.number}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                            {entry.number}
+                                        </a>
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>{entry.status}</td>
+                                    <td
+                                        style={{
+                                            textAlign: 'center',
+                                            backgroundColor: entry.calstatus === 'Interested' ? 'green' : entry.calstatus === 'Rejected' ? 'red' : 'transparent',
+                                            color: entry.calstatus === 'Interested' || entry.calstatus === 'Rejected' ? 'white' : 'inherit'
+                                        }}
+                                    >
+                                        {entry.calstatus}
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>{entry.pipeline?.name || 'N/A'}</td>
+                                    <td style={{ textAlign: 'center' }}>{entry.user?.name || 'N/A'}</td>
+                                    <td style={{ textAlign: 'center' }}>
 
-                                    <GrView style={{ fontSize: '20px', cursor: 'pointer' }} onClick={() => handleViewCommentsClick(entry)} />
-                                </td>
+                                        <GrView onClick={() => handleViewCommentsClick(entry)}
+                                            style={{ fontSize: '20px', cursor: 'pointer' }}
+                                        />
+
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="6" style={{ textAlign: 'center' }}>No data found</td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </Table>
-            </Container>
 
-            {/* Import CSV Modal */}
-            <Modal show={show} onHide={handleClose} backdrop="static" keyboard={false}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Import CSV</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <ImportCSVForm
-                        pipelines={pipelines}
-                        users={users}
-                        onSubmit={handleCSVUpload}
-                    />
-                </Modal.Body>
-            </Modal>
-
-            {/* View Comments Modal */}
-            <Modal show={showViewCommentModal} onHide={() => setShowViewCommentModal(false)}>
-                <Modal.Header closeButton>
-                    <Modal.Title>View Comments</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {commentsToView.length > 0 ? (
+                {/* View Comments Modal */}
+                <Modal show={showViewCommentModal} onHide={() => setShowViewCommentModal(false)} size="lg">
+                    <Modal.Header closeButton>
+                        <Modal.Title>View Comments</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body style={{ height: 'auto', maxHeight: '700px', overflowY: 'scroll' }}>
                         <ul>
-                            {commentsToView.map((comment, index) => (
-                                <li key={index}>{comment.remarks}</li>
-                            ))}
+                            {commentsToView.length > 0 ? (
+                                commentsToView.map((comment, index) => (
+                                    <li key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd', padding: '10px 0', }} >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} >
+                                            <img
+                                                src={comment.user?.image || defaultimage}
+                                                alt="User image"
+                                                className='image_url_default'
+                                                onError={(e) => {
+                                                    e.target.onerror = null; // Prevents infinite loop in case defaultimage also fails
+                                                    e.target.src = defaultimage; // Fallback to default image
+                                                }}
+                                            />
+
+                                            <div>
+                                                <p className='mb-0'>{comment?.remarks && comment?.remarks ? comment?.remarks : 'No Comments Available'}</p>
+                                                <small> {comment.user?.name && comment.user?.name ? comment.user.name : 'Unknown User'} </small>
+                                            </div>
+                                        </div>
+
+                                        <small>
+                                            {`${new Date(comment.createdAt).toDateString()} - ${new Date(comment.createdAt).toLocaleTimeString()}`}
+                                        </small>
+
+                                    </li>
+                                ))
+                            ) : (
+                                <p>No Comments Available.</p>
+                            )}
                         </ul>
-                    ) : (
-                        <p>No Comments Available.</p>
-                    )}
-                </Modal.Body>
-            </Modal>
+                    </Modal.Body>
+                    {/* <Modal.Footer>
+                        <Button variant="secondary" onClick={() => setShowViewCommentModal(false)}>
+                            Close
+                        </Button>
+                    </Modal.Footer> */}
+                </Modal>
+
+                {/* Import CSV Modal */}
+                <Modal show={show} onHide={handleClose} backdrop="static" keyboard={false}>
+                    <Modal.Header closeButton>
+                        <Modal.Title>Import CSV</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <ImportCSVForm users={users} pipelines={pipelines} onSubmit={handleCSVUpload} />
+                    </Modal.Body>
+                </Modal>
+            </Container>
         </>
     );
 };
