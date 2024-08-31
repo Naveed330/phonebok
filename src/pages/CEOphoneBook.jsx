@@ -8,6 +8,8 @@ import { MdAdd } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import { CiEdit } from 'react-icons/ci';
 import defaultimage from '../Assets/defaultimage.png'
+import DatePicker from 'react-datepicker'; // Import DatePicker
+import "react-datepicker/dist/react-datepicker.css";
 
 const CEOphoneBook = () => {
   const [ceoPhoneBookData, setCeoPhoneBookData] = useState([]);
@@ -30,12 +32,14 @@ const CEOphoneBook = () => {
   const [dropdownEntry, setDropdownEntry] = useState(null);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
-
+  const [startDate, setStartDate] = useState(null); // New state for start date
+  const [endDate, setEndDate] = useState(null); // New state for end date
   const navigate = useNavigate();
 
   const calStatusOptions = [
-    { value: 'Interested', label: 'Interested' },
-    { value: 'Rejected', label: 'Rejected' },
+    { value: 'No Answer', label: 'No Answer' },
+    { value: 'Not Interested', label: 'Not Interested' },
+    { value: 'Convert to Lead', label: 'Convert to Lead' },
   ];
 
   const fetchData = async () => {
@@ -108,9 +112,16 @@ const CEOphoneBook = () => {
     if (searchQuery) {
       filtered = filtered.filter(entry => entry.number.toLowerCase().includes(searchQuery.toLowerCase()));
     }
+    if (startDate && endDate) {
+      filtered = filtered.filter(entry => {
+        const entryDate = new Date(entry.updatedAt);
+        return entryDate >= startDate && entryDate <= endDate;
+      });
+    }
+
 
     setFilteredData(filtered);
-  }, [selectedPipeline, selectedUser, selectedCalStatus, searchQuery, ceoPhoneBookData]);
+  }, [selectedPipeline, selectedUser, selectedCalStatus, searchQuery, ceoPhoneBookData, startDate, endDate]);
 
   if (loading) return (
     <div className="no-results mt-5" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -130,9 +141,9 @@ const CEOphoneBook = () => {
     setShowViewCommentModal(true);
   };
 
-  // Filtered call status options to include only 'Interested' and 'Rejected'
+  // Filtered call status options to include only 'No Answer' and 'Not Interested'
   const callStatusOptions = [...new Set(ceoPhoneBookData.map(entry => entry.calstatus))]
-    .filter(status => status === 'Interested' || status === 'Rejected')
+    .filter(status => status === 'No Answer' || status === 'Not Interested')
     .map(status => ({ value: status, label: status }));
 
   // Add Comment API
@@ -238,11 +249,11 @@ const CEOphoneBook = () => {
     <>
       <HomeNavbar />
       <Container fluid>
-
+        <Button onClick={() => navigate('/generatereport')} >Call History</Button>
         {/* Filter by pipeline */}
         <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '10px' }} className='mt-5'>
           <div className="filter-container w-100">
-            <label htmlFor="pipeline-filter">Filter by Pipeline:</label>
+            <label htmlFor="pipeline-filter">Filter by Pipeline</label>
             <Select
               id="pipeline-filter"
               value={selectedPipeline}
@@ -254,7 +265,7 @@ const CEOphoneBook = () => {
 
           {/* Filter by user */}
           <div className="filter-container w-100">
-            <label htmlFor="user-filter">Filter by User:</label>
+            <label htmlFor="user-filter">Filter by User</label>
             <Select
               id="user-filter"
               value={selectedUser}
@@ -266,7 +277,7 @@ const CEOphoneBook = () => {
 
           {/* Filter by call status */}
           <div className="filter-container w-100">
-            <label htmlFor="user-filter">Filter by Call Status:</label>
+            <label htmlFor="user-filter">Filter by Call Status</label>
             <Form.Group controlId="selectCalStatus" className='w-100'>
               <Select
                 options={calStatusOptions}
@@ -277,7 +288,6 @@ const CEOphoneBook = () => {
               />
             </Form.Group>
           </div>
-
           {/* Search by Number */}
           <Form.Group controlId="searchBarNumber" className='w-100'>
             <label htmlFor="search-query">Search by Number:</label>
@@ -288,6 +298,33 @@ const CEOphoneBook = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </Form.Group>
+          <div className="filter-container w-100">
+            <label htmlFor="date-filter">Filter by  Date</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <DatePicker
+                selected={startDate}
+                onChange={(date) => setStartDate(date)}
+                selectsStart
+                startDate={startDate}
+                endDate={endDate}
+                placeholderText="Start Date"
+                dateFormat="yyyy/MM/dd"
+                className="form-control"
+              />
+              <DatePicker
+                selected={endDate}
+                onChange={(date) => setEndDate(date)}
+                selectsEnd
+                startDate={startDate}
+                endDate={endDate}
+                minDate={startDate}
+                placeholderText="End Date"
+                dateFormat="yyyy/MM/dd"
+                className="form-control"
+              />
+            </div>
+          </div>
+
         </div>
 
         <Table striped bordered hover responsive className='mt-3'>
@@ -312,8 +349,8 @@ const CEOphoneBook = () => {
                   <td
                     style={{
                       textAlign: 'center',
-                      backgroundColor: entry.calstatus === 'Interested' ? 'green' : entry.calstatus === 'Rejected' ? 'red' : 'transparent',
-                      color: entry.calstatus === 'Interested' || entry.calstatus === 'Rejected' ? 'white' : 'inherit'
+                      backgroundColor: entry.calstatus === 'No Answer' ? 'green' : entry.calstatus === 'Not Interested' ? 'red' : 'transparent',
+                      color: entry.calstatus === 'No Answer' || entry.calstatus === 'Not Interested' ? 'white' : 'inherit'
                     }}
                   >
                     {entry.calstatus}
@@ -326,8 +363,8 @@ const CEOphoneBook = () => {
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
                           <Dropdown.Item onClick={() => handleCallStatusChange('Req to call')}>Req to call</Dropdown.Item>
-                          <Dropdown.Item onClick={() => handleCallStatusChange('Interested')}>Interested</Dropdown.Item>
-                          <Dropdown.Item onClick={() => handleCallStatusChange('Rejected')}>Rejected</Dropdown.Item>
+                          <Dropdown.Item onClick={() => handleCallStatusChange('No Answer')}>No Answer</Dropdown.Item>
+                          <Dropdown.Item onClick={() => handleCallStatusChange('Not Interested')}>Not Interested</Dropdown.Item>
                           <Dropdown.Item onClick={() => handleCallStatusChange('Convert to Lead')}>Convert to Lead</Dropdown.Item>
                         </Dropdown.Menu>
                       </Dropdown>

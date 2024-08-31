@@ -8,6 +8,8 @@ import { MdAdd } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import { CiEdit } from 'react-icons/ci';
 import defaultimage from '../Assets/defaultimage.png'
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const HodPhoneBook = () => {
     const [hodData, setHodData] = useState([]);
@@ -26,15 +28,21 @@ const HodPhoneBook = () => {
     const [dropdownEntry, setDropdownEntry] = useState(null);
     const [pendingStatusChange, setPendingStatusChange] = useState(null);
     const [showConvertModal, setShowConvertModal] = useState(false);
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
     const navigate = useNavigate();
 
+    console.log(commentsToView, 'commentsToViewcommentsToView')
     const allowedRoles = [
-        'HOD'
+        'HOD',
+        'Team Leader',
+        'Manager',
+        'Coordinator'
     ];
 
     const calStatusOptions = [
-        { value: 'Interested', label: 'Interested' },
-        { value: 'Rejected', label: 'Rejected' },
+        { value: 'No Answer', label: 'No Answer' },
+        { value: 'Not Interested', label: 'Not Interested' },
     ];
 
     const getHodPhoneBookData = async (token) => {
@@ -51,8 +59,9 @@ const HodPhoneBook = () => {
             const sortedData = filteredData.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
             setHodData(sortedData);
             setFilteredPhonebookData(sortedData);
-
             getAllUsers(token);
+
+            console.log(response.data, 'responseresponse')
         } catch (error) {
             console.log('Error fetching HOD Phone Book data:', error);
             setError('No Phone Book Data Available.');
@@ -110,10 +119,12 @@ const HodPhoneBook = () => {
         const results = hodData.filter(entry =>
             entry.number.toLowerCase().includes(searchQuery.toLowerCase()) &&
             (!selectedUser || entry.user._id === selectedUser.value) &&
-            (!selectedCalStatus || entry.calstatus === selectedCalStatus.value)
+            (!selectedCalStatus || entry.calstatus === selectedCalStatus.value) &&
+            (!startDate || new Date(entry.updatedAt) >= startDate) &&
+            (!endDate || new Date(entry.updatedAt) <= endDate)
         );
         setFilteredPhonebookData(results);
-    }, [searchQuery, hodData, selectedUser, selectedCalStatus]);
+    }, [searchQuery, hodData, selectedUser, selectedCalStatus, startDate, endDate]);
 
     const handleViewComments = (comments) => {
         setCommentsToView(comments);
@@ -234,6 +245,7 @@ const HodPhoneBook = () => {
         <>
             <HomeNavbar />
             <div className="phonebook-container">
+                <Button onClick={() => navigate('/generatereport')} >Call History</Button>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', alignItems: 'center' }}>
                     <Form.Group controlId="searchBarNumber" className='w-100'>
                         <Form.Control
@@ -263,7 +275,25 @@ const HodPhoneBook = () => {
                             isClearable
                         />
                     </Form.Group>
+
+                    <div className='w-100' style={{ display: 'flex', gap: '15px' }} >
+                        <DatePicker
+                            selected={startDate}
+                            onChange={date => setStartDate(date)}
+                            placeholderText="Start Date"
+                            dateFormat="yyyy/MM/dd"
+                            className="form-control"
+                        />
+                        <DatePicker
+                            selected={endDate}
+                            onChange={date => setEndDate(date)}
+                            placeholderText="End Date"
+                            dateFormat="yyyy/MM/dd"
+                            className="form-control"
+                        />
+                    </div>
                 </div>
+
 
                 <div>
                     {error ? (
@@ -291,8 +321,8 @@ const HodPhoneBook = () => {
                                             <td
                                                 style={{
                                                     textAlign: 'center',
-                                                    backgroundColor: entry.calstatus === 'Interested' ? 'green' : entry.calstatus === 'Rejected' ? 'red' : 'transparent',
-                                                    color: entry.calstatus === 'Interested' || entry.calstatus === 'Rejected' ? 'white' : 'inherit'
+                                                    backgroundColor: entry.calstatus === 'No Answer' ? 'green' : entry.calstatus === 'Not Interested' ? 'red' : 'transparent',
+                                                    color: entry.calstatus === 'No Answer' || entry.calstatus === 'Not Interested' ? 'white' : 'inherit'
                                                 }}
                                             >
                                                 {entry.calstatus}
@@ -305,8 +335,8 @@ const HodPhoneBook = () => {
                                                         </Dropdown.Toggle>
                                                         <Dropdown.Menu>
                                                             <Dropdown.Item onClick={() => handleCallStatusChange('Req to call')}>Req to call</Dropdown.Item>
-                                                            <Dropdown.Item onClick={() => handleCallStatusChange('Interested')}>Interested</Dropdown.Item>
-                                                            <Dropdown.Item onClick={() => handleCallStatusChange('Rejected')}>Rejected</Dropdown.Item>
+                                                            <Dropdown.Item onClick={() => handleCallStatusChange('No Answer')}>No Answer</Dropdown.Item>
+                                                            <Dropdown.Item onClick={() => handleCallStatusChange('Not Interested')}>Not Interested</Dropdown.Item>
                                                             <Dropdown.Item onClick={() => handleCallStatusChange('Convert to Lead')}>Convert to Lead</Dropdown.Item>
                                                         </Dropdown.Menu>
                                                     </Dropdown>
@@ -360,7 +390,7 @@ const HodPhoneBook = () => {
 
                                             <div>
                                                 <p className='mb-0'>{comment?.remarks && comment?.remarks ? comment?.remarks : 'No Comments Available'}</p>
-                                                <small> {comment.user?.name && comment.user?.name ? comment.user.name : 'Unknown User'} </small>
+                                                <small> {comment.user?.name && comment.user?.name} </small>
                                             </div>
                                         </div>
 

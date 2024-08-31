@@ -13,6 +13,7 @@ import CEOphoneBook from './pages/CEOphoneBook';
 import Allusers from './pages/Allusers';
 import LeadConverted from './pages/LeadConverted';
 import RegisterUser from './pages/RegisterUser';
+import GenerateReport from './pages/GenerateReport';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path='/createuser' element={<RegisterUser />} />
           <Route path='/superadmindashboard' element={<SuperadminDashboard />} />
           <Route path='/home' element={<Home />} />
+          <Route path='/generatereport' element={<GenerateReport />} />
           <Route path='/blocklist' element={<Blocklist />} />
           <Route path='/profile' element={<Profile />} />
           <Route path='/hodphonebook' element={<HodPhoneBook />} />

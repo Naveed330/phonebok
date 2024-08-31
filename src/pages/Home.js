@@ -199,9 +199,9 @@ const Home = () => {
                                 {searchCalStatus ? searchCalStatus : 'Search by Call Status'}
                             </Dropdown.Toggle>
                             <Dropdown.Menu className="w-100">
-                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="">All</Dropdown.Item>
-                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="Interested">Interested</Dropdown.Item>
-                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="Rejected">Rejected</Dropdown.Item>
+                                {/* <Dropdown.Item style={{ textAlign: 'center' }} eventKey="">All</Dropdown.Item> */}
+                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="No Answer">No Answer</Dropdown.Item>
+                                <Dropdown.Item style={{ textAlign: 'center' }} eventKey="Not Interested">Not Interested</Dropdown.Item>
                             </Dropdown.Menu>
                         </Dropdown>
                     </Form.Group>
@@ -227,8 +227,8 @@ const Home = () => {
                                     <td
                                         style={{
                                             textAlign: 'center',
-                                            backgroundColor: entry.calstatus === 'Interested' ? 'green' : entry.calstatus === 'Rejected' ? 'red' : 'transparent',
-                                            color: entry.calstatus === 'Interested' || entry.calstatus === 'Rejected' ? 'white' : 'inherit'
+                                            backgroundColor: entry.calstatus === 'No Answer' ? 'green' : entry.calstatus === 'Not Interested' ? 'red' : 'transparent',
+                                            color: entry.calstatus === 'No Answer' || entry.calstatus === 'Not Interested' ? 'white' : 'inherit'
                                         }}
                                     >
                                         {entry.calstatus}
@@ -241,8 +241,8 @@ const Home = () => {
                                                 </Dropdown.Toggle>
                                                 <Dropdown.Menu>
                                                     <Dropdown.Item onClick={() => handleCallStatusChange('Req to call')}>Req to call</Dropdown.Item>
-                                                    <Dropdown.Item onClick={() => handleCallStatusChange('Interested')}>Interested</Dropdown.Item>
-                                                    <Dropdown.Item onClick={() => handleCallStatusChange('Rejected')}>Rejected</Dropdown.Item>
+                                                    <Dropdown.Item onClick={() => handleCallStatusChange('No Answer')}>No Answer</Dropdown.Item>
+                                                    <Dropdown.Item onClick={() => handleCallStatusChange('Not Interested')}>Not Interested</Dropdown.Item>
                                                     <Dropdown.Item onClick={() => handleCallStatusChange('Convert to Lead')}>Convert to Lead</Dropdown.Item>
                                                 </Dropdown.Menu>
                                             </Dropdown>

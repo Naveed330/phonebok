@@ -10,7 +10,8 @@ import ImportCSVForm from '../ImportCSv'; // Fixed import
 import '../../pages/style.css';
 import defaultimage from '../../Assets/defaultimage.png'
 import { useNavigate } from 'react-router-dom';
-
+import DatePicker from 'react-datepicker'; // Import DatePicker
+import "react-datepicker/dist/react-datepicker.css";
 const RegisteredNumber = () => {
     const [pipelines, setPipelines] = useState([]);
     const [users, setUsers] = useState([]);
@@ -26,7 +27,8 @@ const RegisteredNumber = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedCalStatus, setSelectedCalStatus] = useState(null); // New state for call status filter
-
+    const [startDate, setStartDate] = useState(null); // New state for start date
+    const [endDate, setEndDate] = useState(null); // New state for end date
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
     const navigate = useNavigate()
@@ -42,8 +44,9 @@ const RegisteredNumber = () => {
 
     const calStatusOptions = [
         { value: '', label: 'All Call Statuses' },
-        { value: 'Interested', label: 'Interested' },
-        { value: 'Rejected', label: 'Rejected' },
+        { value: 'No Answer', label: 'No Answer' },
+        { value: 'Not Interested', label: 'Not Interested' },
+        { value: 'Convert to Lead', label: 'Convert to Lead' },
     ];
 
     useEffect(() => {
@@ -123,9 +126,15 @@ const RegisteredNumber = () => {
                 (entry.calstatus && entry.calstatus.toLowerCase().includes(searchQuery.toLowerCase()))
             );
         }
+        if (startDate && endDate) {
+            filtered = filtered.filter(entry => {
+                const entryDate = new Date(entry.updatedAt);
+                return entryDate >= startDate && entryDate <= endDate;
+            });
+        }
 
         setFilteredData(filtered);
-    }, [selectedPipeline, selectedUser, selectedCalStatus, searchQuery, phonebookData]);
+    }, [selectedPipeline, selectedUser, selectedCalStatus, searchQuery, phonebookData, startDate, endDate]);
 
     if (loading) return (
         <div className="no-results" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -158,18 +167,20 @@ const RegisteredNumber = () => {
         <>
             <HomeNavbar />
             <Container fluid>
+           
                 <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '20px' }} className='mt-4'>
-                    <div style={{display:'flex', gap:'15px', alignItems:'center'}}>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
 
-                    <h2>Phonebook Management</h2>
-                    <Button variant="outline-success" onClick={handleShow}>
-                        <MdOutlineAddCircle style={{ marginTop: '-2px' }} /> Import CSV
-                    </Button>
+                        <h2>Phonebook Management</h2>
+                        <Button variant="outline-success" onClick={handleShow}>
+                            <MdOutlineAddCircle style={{ marginTop: '-2px' }} /> Import CSV
+                        </Button>
                     </div>
 
-                    <div style={{display:'flex', gap:'15px', alignItems:'center'}} >
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }} >
                         <Button variant="outline-success" onClick={() => navigate('/createuser')} >Create Account</Button>
                         <Button variant="outline-success" onClick={() => navigate('/allusers')} >All Users</Button>
+                        <Button variant="outline-success" onClick={() => navigate('/generatereport')} >Call History</Button>
                     </div>
                 </div>
 
@@ -213,7 +224,7 @@ const RegisteredNumber = () => {
 
                     {/* Search by Number */}
                     <Form.Group controlId="search" className='w-100'>
-                        <Form.Label className='mb-0'>Search by Number:</Form.Label>
+                        <Form.Label className='mb-0'>Search by Number</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Search by Number"
@@ -221,7 +232,37 @@ const RegisteredNumber = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </Form.Group>
+
+                    <div className="filter-container w-100">
+                        <label htmlFor="date-filter">Filter by Date</label>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <DatePicker
+                                selected={startDate}
+                                onChange={(date) => setStartDate(date)}
+                                selectsStart
+                                startDate={startDate}
+                                endDate={endDate}
+                                placeholderText="Start Date"
+                                dateFormat="yyyy/MM/dd"
+                                className="form-control"
+                            />
+                            <DatePicker
+                                selected={endDate}
+                                onChange={(date) => setEndDate(date)}
+                                selectsEnd
+                                startDate={startDate}
+                                endDate={endDate}
+                                minDate={startDate}
+                                placeholderText="End Date"
+                                dateFormat="yyyy/MM/dd"
+                                className="form-control"
+                            />
+                        </div>
+                    </div>
+
                 </div>
+
+
 
                 <Table striped bordered hover className="mt-3">
                     <thead>
@@ -247,8 +288,8 @@ const RegisteredNumber = () => {
                                     <td
                                         style={{
                                             textAlign: 'center',
-                                            backgroundColor: entry.calstatus === 'Interested' ? 'green' : entry.calstatus === 'Rejected' ? 'red' : 'transparent',
-                                            color: entry.calstatus === 'Interested' || entry.calstatus === 'Rejected' ? 'white' : 'inherit'
+                                            backgroundColor: entry.calstatus === 'No Answer' ? 'green' : entry.calstatus === 'Not Interested' ? 'red' : 'transparent',
+                                            color: entry.calstatus === 'No Answer' || entry.calstatus === 'Not Interested' ? 'white' : 'inherit'
                                         }}
                                     >
                                         {entry.calstatus}
