@@ -126,7 +126,15 @@ const GenerateReport = () => {
     return (
         <>
             <HomeNavbar />
+
             <div className="phonebook-container">
+                <div  style={{ display: 'flex', justifyContent: 'center', gap: '15px', alignItems: 'center' }}>
+                    <h5>Total Numbers ({totalNumbers})</h5>
+                    <h5 style={{ color: "blue" }}>Total Interested ({totalInterested})</h5>
+                    <h5 style={{ color: "red" }}>Total Not Interested ({totalNotInterested})</h5>
+                    <h5 style={{ color: "green" }}>Lead Converted ({totalConvertedLead})</h5>
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', alignItems: 'center' }}>
                     <Form.Group controlId="selectUser" className='w-100'>
                         <Select
@@ -166,12 +174,7 @@ const GenerateReport = () => {
                     </div>
                 </div>
 
-                <div className="mt-3">
-                    <h5>Total Numbers: {totalNumbers}</h5>
-                    <h6>Total Interested: {totalInterested}</h6>
-                    <h6>Total Not Interested: {totalNotInterested}</h6>
-                    <h6>Lead Converted: {totalConvertedLead}</h6>
-                </div>
+
 
                 <div>
                     {error ? (
